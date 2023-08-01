@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -23,8 +25,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavType
@@ -188,7 +196,6 @@ fun MainScreen(navController: NavController) {
     LayoutInputField()
 }
 
-@Composable
 fun changeIP(ip: String?): String? {
     return ip?.replace(".","-")
 }
@@ -199,37 +206,60 @@ fun changeCIDR(cidr: String?): String? {
     return cidr?.replace("/","-")
 }
 
-@Composable
 fun originIP(ip: String?): String? {
     return ip?.replace("-",".")
 }
 
-@Composable
+
 fun originCIDR(cidr: String?): String? {
     return cidr?.replace("-","/")
 }
 // I need the next function to make CIDR into INT
-@Composable
 fun toIntCIDR(cidr: String): Int {
     return cidr.replace("/","").toInt()
 }
-@Composable
-fun calculateIPAddresses(ipAddress: String, cidr: Int): Long {
+
+fun calculateIPAddresses(cidr: Int): Int{
     // Convert IP address to a 32-bit integer
-    val ipParts = ipAddress.split("-")
-    var ip = 0L
-    for (part in ipParts) {
-        ip = ip shl 8
-        ip = ip or part.toLong()
+    return when (cidr) {
+        1 -> 2147483392
+        2 -> 107741696
+        3 -> 536870848
+        4 -> 268435424
+        5 -> 134217712
+        6 -> 67108856
+        7 -> 33554428
+        8 -> 16777214
+        9 -> 8388352
+        10 -> 4194176
+        11 -> 2097088
+        12 -> 1048544
+        13 -> 524272
+        14 -> 262136
+        15 -> 131068
+        16 -> 65024
+        17 -> 32512
+        18 -> 16256
+        19 -> 8128
+        20 -> 4064
+        21 -> 2032
+        22 -> 1016
+        23 -> 508
+        24 -> 254
+        25 -> 124
+        26 -> 62
+        27 -> 30
+        28 -> 14
+        29 -> 6
+        30 -> 2
+        31 -> 0
+        32 -> 1
+        else -> throw IllegalArgumentException("Invalid CIDR notation: $cidr")
     }
 
-    // Calculate the number of IP addresses available
-    val availableAddresses = 1L shl (32 - cidr)
-    return availableAddresses
 }
 
 // Helper function to convert IP address bytes to an integer value
-@Composable
 private fun convertBytesToInt(ipBytes: ByteArray): Int {
     var ipAddressAsInt = 0
 
@@ -241,11 +271,88 @@ private fun convertBytesToInt(ipBytes: ByteArray): Int {
 }
 
 @Composable
+fun TextCard(label: String, text: String) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(15.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(15.dp)
+        ) {
+            Text(
+                buildAnnotatedString {
+                    append(label)
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.W900, color = Color(0xFF4552B8))
+                    ) {
+                        append(text)
+                    }
+                }
+            )
+        }
+    }
+}
+fun findNetworkID(ipAddress: String, cidr: Int): String {
+    // Split the IP address into octets
+    val octets = ipAddress.split("-")
+    val cidr = cidr * -1
+    // Convert the octets to binary format
+    val binaryIP = StringBuilder()
+    for (octet in octets) {
+        val binaryOctet = Integer.toBinaryString(octet.toInt())
+        val paddedOctet = binaryOctet.padStart(8, '0')
+        binaryIP.append(paddedOctet)
+    }
+    // Find the network ID by applying the CIDR mask
+    val networkID = binaryIP.substring(0, cidr).padEnd(32, '0')
+
+    // Convert the network ID back to decimal format
+    val networkOctets = mutableListOf<String>()
+    for (i in 0 until 32 step 8) {
+        val octet = networkID.substring(i, i + 8)
+        val decimalOctet = Integer.parseInt(octet, 2).toString()
+        networkOctets.add(decimalOctet)
+    }
+
+    // Return the network ID as a string
+    return networkOctets.joinToString(".")
+}
+
+fun CalcAvailableIPs (ip: Long): Any {
+    if ((ip - 2) < 0 ) {
+        return 0
+    }
+    else return (ip - 2)
+}
+
+fun calculateLastIPAddress(networkID: String, cidr: Int): String {
+
+    // Split the network ID into octets
+    val octets = networkID.split(".")
+
+    // Convert each octet to an integer
+    val octet1 = octets[0].toInt()
+    val octet2 = octets[1].toInt()
+    val octet3 = octets[2].toInt()
+    val octet4 = octets[3].toInt()
+
+    // Calculate the number of host bits
+    val hostBits = 32 - cidr
+
+    // Calculate the last IP address
+    val lastOctet = (octet4 shr hostBits) + (1 shl hostBits) - 1
+    val lastIP = "$octet1.$octet2.$octet3.$lastOctet"
+
+    return lastIP
+}
+@Composable
 fun DetailScreen(ip: String?, cidr: String?){
-    val CIDR = toIntCIDR(cidr = cidr!!)
-    val numberOfIPs = calculateIPAddresses(ipAddress = ip!!, cidr = CIDR)
+    val CIDR = (toIntCIDR(cidr = cidr!!) * -1)
+    val numberOfIPs = calculateIPAddresses(cidr = CIDR)
+    val networkID = findNetworkID(ipAddress = ip!!, cidr = cidr.toInt())
+    val lastIPAddress = calculateLastIPAddress(cidr = cidr.toInt(), networkID = networkID)
     Column (modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center ){
-        Text(text = "The number of available IP addresses is: $numberOfIPs")
-        Text(text = "The number of availabe host IP addresses is: " + (numberOfIPs - 2))
+        TextCard(label = "The number of IP addresses is ", text = numberOfIPs.toString())
+        TextCard(label ="The Network Range is " , text = "$networkID through $lastIPAddress" )
     }
 }
