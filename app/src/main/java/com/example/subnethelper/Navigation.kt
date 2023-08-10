@@ -1,4 +1,6 @@
 package com.example.subnethelper
+import android.content.Context
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +42,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import java.io.File
 //import java.net.InetAddress
 import kotlin.math.pow
 
@@ -325,34 +328,88 @@ fun CalcAvailableIPs (ip: Long): Any {
     else return (ip - 2)
 }
 
+fun toBinary(n: Int): String {
+    return if (n != 0) toBinary(n / 2) + n % 2 else { "" }
+}
+/*
 fun calculateLastIPAddress(networkID: String, cidr: Int): String {
 
     // Split the network ID into octets
     val octets = networkID.split(".")
 
     // Convert each octet to an integer
-    val octet1 = octets[0].toInt()
-    val octet2 = octets[1].toInt()
-    val octet3 = octets[2].toInt()
-    val octet4 = octets[3].toInt()
+    var octet1 = octets[0].toInt()
+    var octet2 = octets[1].toInt()
+    var octet3 = octets[2].toInt()
+    var octet4 = octets[3].toInt()
+
+    val octet1binary = toBinary(octet1)
+    val octet2binary = toBinary(octet2)
+    val octet3binary = toBinary(octet3)
+    val octet4binary = toBinary(octet4)
 
     // Calculate the number of host bits
     val hostBits = 32 - cidr
+    val numberOfIPs = Math.pow(hostBits.toDouble(), 2.0).toInt()
+    when (numberOfIPs) {
+        in 0..255 -> octet4 = octet4 + numberOfIPs
+        in 256 .. 64000 -> {octet4 = 255; octet3 }
+    } // damn - I thought I had something - but I'll scrap this
 
     // Calculate the last IP address
+    Log.d("hostBits", "HostBits: $hostBits")
     val lastOctet = (octet4 shr hostBits) + (1 shl hostBits) - 1
+    val lastOctetBinary = toBinary(lastOctet)
+    Log.d("Display Octets","First Octet $octet1 | Second Octet $octet2 | Third Octet $octet3 | Fourth Octet $lastOctet");
+    Log.d("Display Octets in Binary", "1 $octet1binary | 2 $octet2binary | 3 $octet3binary | 4 $octet4binary | Last $lastOctetBinary" )
     val lastIP = "$octet1.$octet2.$octet3.$lastOctet"
 
     return lastIP
 }
+*/
+fun getLastIPAddress(networkId: String, cidr: Int): String {
+    Log.d("CIDR","CIDR: $cidr")
+    val networkParts = networkId.split(".")
+    val octets = networkParts.map { it.toInt() }.toMutableList()
+    val cidrOctetIndex = cidr / 8
+    val cidrBitOffset = cidr % 8
+
+    // Calculate the last octet value
+    val lastOctet = octets[cidrOctetIndex] or (0xFF ushr cidrBitOffset.inv())
+
+    Log.d("CidrIndex", "cidrOctetIndex = $cidrOctetIndex")
+    // Set all octets after the last octet to 255
+    for (i in cidrOctetIndex + 1 until 4) {
+        octets[i] = 255
+    }
+
+    return octets.joinToString(".")
+}
+
+fun createFileWithText(fileName: String, text: String, context: Context) {
+    val path = context.filesDir
+    val file = File("$path$fileName")
+    file.writeText(text)
+}
 @Composable
 fun DetailScreen(ip: String?, cidr: String?){
+    val context = LocalContext.current
     val CIDR = (toIntCIDR(cidr = cidr!!) * -1)
     val numberOfIPs = calculateIPAddresses(cidr = CIDR)
     val networkID = findNetworkID(ipAddress = ip!!, cidr = cidr.toInt())
-    val lastIPAddress = calculateLastIPAddress(cidr = cidr.toInt(), networkID = networkID)
+    val lastIPAddress = getLastIPAddress(cidr = ((cidr.toInt() * -1) - 1), networkId = networkID)
+    val path = context.filesDir
     Column (modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center ){
-        TextCard(label = "The number of IP addresses is ", text = numberOfIPs.toString())
-        TextCard(label ="The Network Range is " , text = "$networkID through $lastIPAddress" )
+        TextCard(label = "The number of 'usable' IP addresses is ", text = numberOfIPs.toString())
+        TextCard(label ="The IP range is: " , text = "$networkID through $lastIPAddress" )
+        Button(
+        onClick = {
+            createFileWithText(fileName = "SubnetHelp.txt","Number of usable IP address is $numberOfIPs \n The IP rage is $networkID through $lastIPAddress", context)
+            Toast.makeText(context, "Generated a text file called $path SubnetHelp.txt!", Toast.LENGTH_SHORT).show()
+        }
+        ) {
+            Text(text = "Create a txt file")
+        }
+
     }
 }
