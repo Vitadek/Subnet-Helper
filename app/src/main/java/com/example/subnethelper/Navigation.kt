@@ -367,24 +367,48 @@ fun calculateLastIPAddress(networkID: String, cidr: Int): String {
     return lastIP
 }
 */
-fun getLastIPAddress(networkId: String, cidr: Int): String {
-    Log.d("CIDR","CIDR: $cidr")
-    val networkParts = networkId.split(".")
-    val octets = networkParts.map { it.toInt() }.toMutableList()
-    val cidrOctetIndex = cidr / 8
-    val cidrBitOffset = cidr % 8
+fun calcRange(octet: Int, cidr: Int): Int {
+    when (octet){
+        4 -> {
+            return (((2.0.pow(32-cidr)) - 1.0).toInt())
+        }
+        3 -> {
+            return (((2.0.pow(24-cidr)) - 1.0).toInt())
+        }
+        2 -> {
+            return (((2.0.pow(16-cidr)) - 1.0).toInt())
+        }
+        1 -> {
+            return (((2.0.pow(8-cidr)) - 1.0).toInt())
 
-    // Calculate the last octet value
-    val lastOctet = octets[cidrOctetIndex] or (0xFF ushr cidrBitOffset.inv())
-
-    Log.d("CidrIndex", "cidrOctetIndex = $cidrOctetIndex")
-    // Set all octets after the last octet to 255
-    for (i in cidrOctetIndex + 1 until 4) {
-        octets[i] = 255
+        }
     }
-
-    return octets.joinToString(".")
+    return 0
 }
+fun getLastIPAddress(networkId: String, cidr: Int): String {
+   val networkParts = networkId.split(".")
+    var octet = networkParts.map{it.toInt()}.toMutableList()
+    when (cidr){
+        in 24..32 -> {octet[3] = (octet[3].toInt()+ calcRange(4, cidr))}
+        in 16 .. 23 -> {
+            octet[3] = octet[3].toInt() + 255
+            octet[2] = (octet[2].toInt() + calcRange(3, cidr))
+        }
+        in 8..15 -> {
+            octet[3] = octet[3].toInt() + 255
+            octet[2] = octet[2].toInt() + 255
+            octet[1] = (octet[1].toInt() + calcRange(2, cidr))
+        }
+        in 0..7 -> {
+            octet[3] = octet[3].toInt() + 255
+            octet[2] = octet[2].toInt() + 255
+            octet[1] = octet[1].toInt() + 255
+            octet[0] = (octet[0] + calcRange(1,cidr))
+        }
+    }
+    return octet.joinToString(".")
+}
+
 
 fun createFileWithText(fileName: String, text: String, context: Context) {
     val path = context.filesDir
@@ -397,7 +421,7 @@ fun DetailScreen(ip: String?, cidr: String?){
     val CIDR = (toIntCIDR(cidr = cidr!!) * -1)
     val numberOfIPs = calculateIPAddresses(cidr = CIDR)
     val networkID = findNetworkID(ipAddress = ip!!, cidr = cidr.toInt())
-    val lastIPAddress = getLastIPAddress(cidr = ((cidr.toInt() * -1) - 1), networkId = networkID)
+    val lastIPAddress = getLastIPAddress(cidr = ((cidr.toInt() * -1)), networkId = networkID)
     val path = context.filesDir
     Column (modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center ){
         TextCard(label = "The number of 'usable' IP addresses is ", text = numberOfIPs.toString())
