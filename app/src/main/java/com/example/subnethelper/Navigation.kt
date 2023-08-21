@@ -331,42 +331,7 @@ fun CalcAvailableIPs (ip: Long): Any {
 fun toBinary(n: Int): String {
     return if (n != 0) toBinary(n / 2) + n % 2 else { "" }
 }
-/*
-fun calculateLastIPAddress(networkID: String, cidr: Int): String {
 
-    // Split the network ID into octets
-    val octets = networkID.split(".")
-
-    // Convert each octet to an integer
-    var octet1 = octets[0].toInt()
-    var octet2 = octets[1].toInt()
-    var octet3 = octets[2].toInt()
-    var octet4 = octets[3].toInt()
-
-    val octet1binary = toBinary(octet1)
-    val octet2binary = toBinary(octet2)
-    val octet3binary = toBinary(octet3)
-    val octet4binary = toBinary(octet4)
-
-    // Calculate the number of host bits
-    val hostBits = 32 - cidr
-    val numberOfIPs = Math.pow(hostBits.toDouble(), 2.0).toInt()
-    when (numberOfIPs) {
-        in 0..255 -> octet4 = octet4 + numberOfIPs
-        in 256 .. 64000 -> {octet4 = 255; octet3 }
-    } // damn - I thought I had something - but I'll scrap this
-
-    // Calculate the last IP address
-    Log.d("hostBits", "HostBits: $hostBits")
-    val lastOctet = (octet4 shr hostBits) + (1 shl hostBits) - 1
-    val lastOctetBinary = toBinary(lastOctet)
-    Log.d("Display Octets","First Octet $octet1 | Second Octet $octet2 | Third Octet $octet3 | Fourth Octet $lastOctet");
-    Log.d("Display Octets in Binary", "1 $octet1binary | 2 $octet2binary | 3 $octet3binary | 4 $octet4binary | Last $lastOctetBinary" )
-    val lastIP = "$octet1.$octet2.$octet3.$lastOctet"
-
-    return lastIP
-}
-*/
 fun calcRange(octet: Int, cidr: Int): Int {
     when (octet){
         4 -> {
